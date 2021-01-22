@@ -1,0 +1,6 @@
+audio_fft.c:71:9:AUDIO_FFT_Init	16	static
+audio_fft.c:127:9:AUDIO_FFT_Data_Input	56	static
+audio_fft.c:167:9:AUDIO_FFT_Process	32	static
+audio_fft.c:204:13:TukeyWin	40	static
+audio_fft.c:221:13:HammingWin	40	static
+audio_fft.c:233:13:BlackmanHarrisWin	48	static
