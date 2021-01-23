@@ -135,7 +135,7 @@ int32_t AUDIO_FFT_Data_Input(int16_t * data, uint32_t len, AUDIO_FFT_instance_t*
 
   for (index = 0; index < len; index ++)
   {
-    *scratch_ptr++ = (float)data[index]/32.7680f;
+    *scratch_ptr++ = (float)data[index]/32768.0f;
     s_idx++;
     if (s_idx == new_data_len)
     {
