@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <audio_fft.h>
 #include <math.h>
+//#include "usbd_cdc_if.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,8 +55,8 @@ UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
-#define ADC_BUF_LEN 4096
-uint16_t adc_buf[ADC_BUF_LEN];
+#define ADC_BUF_LEN 512//4096
+int16_t adc_buf[ADC_BUF_LEN];
 
 /* USER CODE END PV */
 
@@ -74,6 +76,8 @@ AUDIO_FFT_instance_t audio_fft_M1;
 uint8_t completo = 0;
 float * FFT_Out;
 float * FFT_Average;
+enum ms_t {apagados, principal_normal, principal_maximo, alimentacion_normal, alimentacion_maximo};
+enum ms_t estado;
 /* USER CODE END 0 */
 
 /**
@@ -83,7 +87,7 @@ float * FFT_Average;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	estado = apagados;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -109,10 +113,11 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-	HAL_DMA_RegisterCallback(&hdma_usart2_tx, HAL_DMA_XFER_CPLT_CB_ID, &DMATransferComplete);
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
-	audio_fft_M1.sampling_frequency = 66667;
-	audio_fft_M1.FFT_len = 512;
+	//	HAL_DMA_RegisterCallback(&hdma_usart2_tx, HAL_DMA_XFER_CPLT_CB_ID, &DMATransferComplete);
+	HAL_ADC_Start_DMA(&hadc1, (int32_t*)adc_buf, ADC_BUF_LEN);
+
+	audio_fft_M1.sampling_frequency = 133333; 					//66667; //
+	audio_fft_M1.FFT_len = 1024;
 	audio_fft_M1.overlap = 0.5f;
 	audio_fft_M1.win_type = AUDIO_FTT_HANNING_WIN;
 	audio_fft_M1.output = MAGNITUDE;
@@ -125,10 +130,11 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-	double prueba[1026];
-	int mayores[512];
+	int16_t prueba[ADC_BUF_LEN];
+	int16_t toSend[ADC_BUF_LEN+1];
+	//float suma_ant, media;
+	char msg[30];
 
-//	completo=2;
 	while (1)
 	{
     /* USER CODE END WHILE */
@@ -139,55 +145,89 @@ int main(void)
 			HAL_ADC_Stop_DMA(&hadc1);
 			AUDIO_FFT_Data_Input(adc_buf, ADC_BUF_LEN, &audio_fft_M1);
 			AUDIO_FFT_Process(&audio_fft_M1, FFT_Out);
-			completo = 2;
-//			float suma = FFT_Out[2]+FFT_Out[3]+FFT_Out[4]+FFT_Out[5]+FFT_Out[6]+FFT_Out[7]+FFT_Out[8]+FFT_Out[9];
-//			if (suma>0.03f){
-//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
-//				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-//			}
-//			else if(suma>0.02f) {
-//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
-//			}
-//			else{
-//				HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
-//				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
-//			}
-//			prueba[0] = 0xab;
-//			prueba[1] =	0xcd;
+
+			float suma = 0.0;
 			int j=0;
-			for (int i = 0; i<512; i++){
-//				if (FFT_Out[i/2] >= 1) {
-//					mayores[j]=i/2;
-//					j++;
-//				}
+			for (int i = 0; i<(ADC_BUF_LEN); i++){
 				prueba[i] = 20 * log(FFT_Out[i]/256);
-//				prueba[i+3]=FFT_Out[i/2];
-//				prueba[i+2]=((uint16_t)(FFT_Out[i/2]))>>8;
+				suma = suma + prueba[i];
+			}
+			//media = (suma + suma_ant) / 2;
+			//suma_ant = suma;
+
+			switch (estado){
+			case apagados:
+				if ((suma<-107000.0f) & (suma>-110000.0f)){
+					estado = principal_normal;
+					strcpy(msg, "Principal Normal\r\n");
+				}
+				else if ((suma<-120000.0f) & (suma>-123000.0f)){
+					estado = alimentacion_normal;
+					strcpy(msg, "Alimentacion Normal\r\n");
+				}
+				else
+					strcpy(msg, "Apagados\r\n");
+				break;
+
+			case principal_normal:
+				if ((suma<-97000.0f) & (suma>-102000.0f)){
+					estado = principal_maximo;
+					strcpy(msg, "Principal Maximo\r\n");
+				}
+				else if (suma<-130000.0f){
+					estado = apagados;
+					strcpy(msg, "Apagados\r\n");
+				}
+				else
+					strcpy(msg, "Principal Normal\r\n");
+				break;
+
+			case principal_maximo:
+				if (suma<-109000.0f){
+					estado = principal_normal;
+					strcpy(msg, "Principal Normal\r\n");
+				}
+				else
+					strcpy(msg, "Principal Maximo\r\n");
+				break;
+
+			case alimentacion_normal:
+				if ((suma<-103000.0f) & (suma>-106000.0f)){
+					estado = alimentacion_maximo;
+					strcpy(msg, "Alimentacion Maximo\r\n");
+				}
+				else if (suma<-130000.0f){
+					estado = apagados;
+					strcpy(msg, "Apagados\r\n");
+				}
+				else
+					strcpy(msg, "Alimentacion Normal\r\n");
+				break;
+
+			case alimentacion_maximo:
+				if (suma<-120000.0f){
+					estado = alimentacion_normal;
+					strcpy(msg, "Alimentacion Normal\r\n");
+				}
+				else
+					strcpy(msg, "Alimentacion Maximo\r\n");
+				break;
 
 			}
-			//			huart2.Instance->CR3 |= USART_CR3_DMAT;
-			//HAL_DMA_Start_IT(&hdma_usart2_tx, (uint32_t)FFT_Out, (uint32_t)&huart2.Instance->TDR, sizeof(FFT_Out));
-			HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_buf, ADC_BUF_LEN);
+//			HAL_UART_Transmit(&huart2, &msg, strlen(msg), 100000000);
 
+			toSend[0] = 0x3e3e;
+			memcpy(&toSend[1], &prueba, sizeof(prueba));
+			HAL_UART_Transmit(&huart2, &toSend, sizeof(toSend), 100000000);
+			HAL_Delay(100);
+						//CDC_Transmit_FS(&msg, strlen(msg));
+			//			MX_USB_DEVICE_Init();
+			//CDC_Transmit_FS(&toSend, sizeof(toSend));
+
+			HAL_ADC_Start_DMA(&hadc1, (int32_t*)adc_buf, ADC_BUF_LEN);
+			//HAL_Delay(10);
+			completo = 0;
 		}
-
-		if (completo==2){
-//			MX_USB_DEVICE_Init();
-//			CDC_Transmit_FS(&prueba, 1);
-//			HAL_Delay(10);
-//			huart2.Instance->CR3 |= USART_CR3_DMAT;
-//			HAL_DMA_Start_IT(&hdma_usart2_tx, (uint32_t)FFT_Out, (uint32_t)&huart2.Instance->TDR, sizeof(FFT_Out));
-
-			HAL_UART_Transmit(&huart2, prueba, sizeof(prueba),1000000);
-			//			HAL_UART_Transmit_IT(&huart2, (uint16_t)FFT_Out, 512);
-			HAL_Delay(1000);
-		}
-		//		huart2.Instance->CR3 |= USART_CR3_DMAT;
-		//		HAL_DMA_Start_IT(&hdma_usart2_tx, (uint32_t)adc_buf, (uint32_t)&huart2.Instance->TDR, sizeof(adc_buf));
-		//
-		//		HAL_Delay(10);
-
 	}
   /* USER CODE END 3 */
 }
@@ -264,7 +304,7 @@ static void MX_ADC1_Init(void)
   /** Common config
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV16;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV8;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
@@ -287,7 +327,7 @@ static void MX_ADC1_Init(void)
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
-  sConfig.SingleDiff = ADC_DIFFERENTIAL_ENDED;//ADC_SINGLE_ENDED
+  sConfig.SingleDiff = ADC_DIFFERENTIAL_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -681,7 +721,7 @@ static void MX_GPIO_Init(void)
 void DMATransferComplete(DMA_HandleTypeDef *hdma) {
 
 	// Disable UART DMA mode
-	huart2.Instance->CR3 &= ~USART_CR3_DMAT;
+//	huart2.Instance->CR3 &= ~USART_CR3_DMAT;
 
 	// Toggle LD2
 	HAL_GPIO_TogglePin(GPIOE, LED1_Pin);

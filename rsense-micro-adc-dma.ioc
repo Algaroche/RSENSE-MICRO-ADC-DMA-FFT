@@ -1,10 +1,11 @@
 #MicroXplorer Configuration settings - do not modify
 ADC1.Channel-0\#ChannelRegularConversion=ADC_CHANNEL_1
-ADC1.ClockPrescaler=ADC_CLOCK_ASYNC_DIV16
+ADC1.ClockPrescaler=ADC_CLOCK_ASYNC_DIV8
 ADC1.ContinuousConvMode=ENABLE
 ADC1.DMAContinuousRequests=ENABLE
 ADC1.EnableInjectedConversion=DISABLE
-ADC1.IPParameters=Rank-0\#ChannelRegularConversion,SingleDiff-0\#ChannelRegularConversion,Channel-0\#ChannelRegularConversion,SamplingTime-0\#ChannelRegularConversion,OffsetNumber-0\#ChannelRegularConversion,NbrOfConversionFlag,ContinuousConvMode,DMAContinuousRequests,master,ClockPrescaler,Resolution,EnableInjectedConversion
+ADC1.IPParameters=Rank-0\#ChannelRegularConversion,SingleDiff-0\#ChannelRegularConversion,Channel-0\#ChannelRegularConversion,SamplingTime-0\#ChannelRegularConversion,OffsetNumber-0\#ChannelRegularConversion,NbrOfConversionFlag,ContinuousConvMode,DMAContinuousRequests,ClockPrescaler,Resolution,EnableInjectedConversion,NbrOfConversion,master
+ADC1.NbrOfConversion=1
 ADC1.NbrOfConversionFlag=1
 ADC1.OffsetNumber-0\#ChannelRegularConversion=ADC_OFFSET_NONE
 ADC1.Rank-0\#ChannelRegularConversion=1

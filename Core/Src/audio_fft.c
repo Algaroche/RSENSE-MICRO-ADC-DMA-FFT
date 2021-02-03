@@ -149,7 +149,11 @@ int32_t AUDIO_FFT_Data_Input(int16_t * data, uint32_t len, AUDIO_FFT_instance_t*
       s_idx = 0;
       scratch_ptr = &AUDIO_FFT_instance->context.scratch[0];
 
+//      float * FFT_Out;
+//      FFT_Out = calloc(AUDIO_FFT_instance->FFT_len / 2, sizeof(float));
+//      AUDIO_FFT_Process(AUDIO_FFT_instance, FFT_Out);
     }
+
   }
 
   AUDIO_FFT_instance->context.scratch_idx = s_idx;
@@ -189,7 +193,7 @@ int32_t AUDIO_FFT_Process(AUDIO_FFT_instance_t* AUDIO_FFT_instance, float * outp
   {
     float * fftOut = AUDIO_FFT_instance->context.fftOut;
     arm_rfft_fast_f32(&AUDIO_FFT_instance->context.S, fftIn, fftOut, 0);
-    arm_cmplx_mag_f32(fftOut, output, AUDIO_FFT_instance->FFT_len / 2);
+    arm_cmplx_mag_f32(fftOut, output, AUDIO_FFT_instance->FFT_len/ 2);
   }
 
   if(AUDIO_FFT_instance->output == PHASE)
